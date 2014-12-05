@@ -180,36 +180,35 @@ class KATProvider(generic.TorrentProvider):
             return None
 
     def _doSearch(self, search_params, show=None):
-
-        # First run a search using the advanced format -- results are probably more reliable, but often not available for several weeks
-        # http://kat.ph/usearch/%22james%20may%22%20season:1%20episode:1%20verified:1/?rss=1
-        def advancedEpisodeParamBuilder(params):
-            episodeParam = ''
-            if 'show_name' in params:
-                episodeParam = episodeParam + urllib.quote('"' + params.pop('show_name') + '"') +"%20"
-            if 'season' in params:
-                episodeParam = episodeParam + 'season:' + str(params.pop('season')) +"%20"
-            if 'episode' in params:
-                episodeParam = episodeParam + 'episode:' + str(params.pop('episode')) +"%20"
-            return episodeParam
-        searchURL = self._buildSearchURL(advancedEpisodeParamBuilder, search_params);
-        logger.log(u"Advanced-style search string: " + searchURL, logger.DEBUG)
-        data = self.getURL(searchURL)
-
-        # Run a fuzzier search if no results came back from the "advanced" style search
+        # First run a fuzzy search. Inverse from copied code: s01e01 style is more reliable I think.
         # http://kat.ph/usearch/%22james%20may%22%20S01E01%20verified:1/?rss=1
+        def fuzzyEpisodeParamBuilder(params):
+            episodeParam = ''
+            if not 'show_name' in params or not 'season' in params:
+                return ''
+            episodeParam = episodeParam + urllib.quote('"' + params.pop('show_name') + '"') + "%20"
+            episodeParam = episodeParam + 'S' + str(params.pop('season')).zfill(2)
+            if 'episode' in params:
+                episodeParam += 'E' + str(params.pop('episode')).zfill(2)
+            return episodeParam
+        searchURL = self._buildSearchURL(fuzzyEpisodeParamBuilder, search_params);
+        logger.log(u"Fuzzy-style search string: " + searchURL, logger.DEBUG)
+        data = self.getURL(searchURL)
+        
         if not data or data == '<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel></channel></rss>':
-            def fuzzyEpisodeParamBuilder(params):
+            # Run a search using the advanced format if no results came back from the fuzzy search-- results are probably more reliable, but often not available for several weeks
+            # http://kat.ph/usearch/%22james%20may%22%20season:1%20episode:1%20verified:1/?rss=1
+            def advancedEpisodeParamBuilder(params):
                 episodeParam = ''
-                if not 'show_name' in params or not 'season' in params:
-                    return ''
-                episodeParam = episodeParam + urllib.quote('"' + params.pop('show_name') + '"') + "%20"
-                episodeParam = episodeParam + 'S' + str(params.pop('season')).zfill(2)
+                if 'show_name' in params:
+                    episodeParam = episodeParam + urllib.quote('"' + params.pop('show_name') + '"') +"%20"
+                if 'season' in params:
+                    episodeParam = episodeParam + 'season:' + str(params.pop('season')) +"%20"
                 if 'episode' in params:
-                    episodeParam += 'E' + str(params.pop('episode')).zfill(2)
+                    episodeParam = episodeParam + 'episode:' + str(params.pop('episode')) +"%20"
                 return episodeParam
-            searchURL = self._buildSearchURL(fuzzyEpisodeParamBuilder, search_params);
-            logger.log(u"Fuzzy-style search string: " + searchURL, logger.DEBUG)
+            searchURL = self._buildSearchURL(advancedEpisodeParamBuilder, search_params);
+            logger.log(u"Advanced-style search string: " + searchURL, logger.DEBUG)
             data = self.getURL(searchURL)
 
         if not data:

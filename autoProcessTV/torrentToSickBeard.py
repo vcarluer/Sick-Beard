@@ -32,7 +32,7 @@ if len(sys.argv) < 1:
     print ("No folder supplied")
     sys.exit(1)
 else:
-    download_final_dir = sys.argv[0]
+    download_final_dir = sys.argv[1]
     
 # Only final_dir and org_NZB_name are being used to process episodes
 autoProcessTV.processEpisode(download_final_dir, None)
